@@ -452,6 +452,45 @@ export class McpProxyServer {
     return text.slice(0, max - 1) + "…";
   }
 
+  async startService(): Promise<void> {
+    try {
+      console.error("[proxy] Service mode — no stdio transport, HTTP only");
+      this.dashboard.start();
+
+      this.upstreamsReady = (async () => {
+        await this.embeddings.init();
+        await this.connector.discoverAll(this.config.upstreams);
+        this.connector.startIdleReaper(this.config.idleTimeoutMs);
+        console.error(
+          `[proxy] Registry loaded: ${this.registry.size} tools from ${this.connector.discoveredProviders.length} providers (all idle)`,
+        );
+        console.error(
+          `[proxy] Idle timeout: ${this.config.idleTimeoutMs > 0 ? `${this.config.idleTimeoutMs / 1000}s` : "disabled"}`,
+        );
+        console.error(
+          `[proxy] Semantic search: ${this.embeddings.isReady() ? "enabled" : "disabled (lexical fallback)"}`,
+        );
+        console.error(
+          "[proxy] Exposing 3 tools: mcp_search, mcp_schema, mcp_call",
+        );
+      })();
+
+      this.upstreamsReady.catch((error) => {
+        console.error(
+          "[proxy] Background upstream discovery failed:",
+          error instanceof Error ? error.message : error,
+        );
+      });
+    } catch (error) {
+      console.error(
+        "[proxy] Failed to start service:",
+        error instanceof Error ? error.message : error,
+      );
+      await this.cleanup();
+      process.exit(1);
+    }
+  }
+
   async start(): Promise<void> {
     try {
       const transport = new StdioServerTransport();

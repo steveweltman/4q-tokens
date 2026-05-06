@@ -35,6 +35,13 @@ function startAsPrimary(port: number): Promise<void> {
   };
 
   server.setupGracefulShutdown();
+
+  const serviceMode = process.env.MCP_PROXY_SERVICE_MODE === "1";
+  if (serviceMode) {
+    return server.startService().then(() => {
+      server.startHttpTransport(port);
+    });
+  }
   return server.start().then(() => {
     server.startHttpTransport(port);
   });
