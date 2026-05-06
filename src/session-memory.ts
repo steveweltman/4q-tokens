@@ -87,6 +87,10 @@ export class SessionMemory {
     return 0;
   }
 
+  recentRefs(n: number): string[] {
+    return this.calls.slice(-n).map((c) => c.ref).reverse();
+  }
+
   get size(): number {
     return this.calls.length;
   }

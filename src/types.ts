@@ -37,6 +37,8 @@ export const ProxyConfigSchema = z.object({
 
 export type ProxyConfig = z.infer<typeof ProxyConfigSchema>;
 
+export type Domain = 'email' | 'calendar' | 'docs' | 'newsletter';
+
 export interface RegistryEntry {
   ref: string;
   provider: string;
@@ -47,6 +49,7 @@ export interface RegistryEntry {
   example: Record<string, unknown>;
   tags: string[];
   embedding?: number[];
+  domain?: Domain;
   _inputSchema: Record<string, unknown>;
 }
 

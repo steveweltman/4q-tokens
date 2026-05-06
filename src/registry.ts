@@ -1,5 +1,6 @@
 import { RegistryEntry } from "./types.js";
 import { EmbeddingEngine } from "./embeddings.js";
+import { classifyTool } from "./domain.js";
 
 export class ToolRegistry {
   private tools = new Map<string, RegistryEntry>();
@@ -72,6 +73,7 @@ export class ToolRegistry {
       embedding,
       _inputSchema: JSON.parse(JSON.stringify(inputSchema)),
     };
+    entry.domain = classifyTool(entry) ?? undefined;
 
     this.register(entry);
     return entry;

@@ -2,6 +2,7 @@ import { RegistryEntry, SearchResult } from "./types.js";
 import { ToolRegistry } from "./registry.js";
 import { EmbeddingEngine } from "./embeddings.js";
 import { SessionMemory } from "./session-memory.js";
+import { detectActiveDomain, DOMAIN_BOOST } from "./domain.js";
 
 export class HybridSearch {
   private readonly LEXICAL_WEIGHT = 0.4;
@@ -51,6 +52,7 @@ export class HybridSearch {
         });
 
         this.applySessionBoost(scored);
+        this.applyDomainBoost(scored);
         scored.sort((a, b) => b.score - a.score);
         return scored
           .filter((s) => s.score > 0.05)
@@ -65,6 +67,7 @@ export class HybridSearch {
     }
 
     this.applySessionBoost(lexicalScores);
+    this.applyDomainBoost(lexicalScores);
     lexicalScores.sort((a, b) => b.score - a.score);
     return lexicalScores
       .filter((s) => s.score > 0)
@@ -118,6 +121,17 @@ export class HybridSearch {
     for (const entry of scored) {
       const boost = this.sessionMemory.boost(entry.tool.ref);
       if (boost > 0) entry.score += boost;
+    }
+  }
+
+  private applyDomainBoost(scored: Array<{ tool: RegistryEntry; score: number }>): void {
+    if (!this.sessionMemory) return;
+    const recentRefs = this.sessionMemory.recentRefs(5);
+    const activeDomain = detectActiveDomain(recentRefs, this.registry.getAll());
+    if (!activeDomain) return;
+    console.error(`[search] active domain: ${activeDomain}`);
+    for (const entry of scored) {
+      if (entry.tool.domain === activeDomain) entry.score += DOMAIN_BOOST;
     }
   }
 
