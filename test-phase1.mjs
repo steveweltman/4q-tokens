@@ -77,14 +77,15 @@ proc.stderr.on("data", (chunk) => {
     console.error("[proxy]", line);
     if (line.includes("Registry loaded")) {
       registryLoaded = true;
-      // Now send mcp_search
-      console.error("\n[test] Registry ready — sending mcp_search...");
-      proc.stdin.write(
-        msg("tools/call", {
-          name: "mcp_search",
-          arguments: { query: "send email gmail" },
-        })
-      );
+      if (toolsList) {
+        console.error("\n[test] Registry ready — sending mcp_search...");
+        proc.stdin.write(
+          msg("tools/call", {
+            name: "mcp_search",
+            arguments: { query: "send email gmail" },
+          })
+        );
+      }
     }
   }
 });
@@ -103,6 +104,11 @@ rl.on("line", (line) => {
   if (parsed.result?.serverInfo) {
     // initialize response — send initialized notification then tools/list
     console.error("[test] Got initialize response — sending tools/list...");
+    const isBridge = parsed.result.serverInfo.name === "mcp-proxy-bridge";
+    if (isBridge) {
+      console.error("[test] Bridge mode detected — registry already loaded in primary");
+      registryLoaded = true;
+    }
     proc.stdin.write(notif("notifications/initialized"));
     proc.stdin.write(msg("tools/list"));
     return;
@@ -112,7 +118,15 @@ rl.on("line", (line) => {
     toolsList = parsed.result.tools;
     console.error(`[test] tools/list → ${toolsList.length} tool(s):`);
     for (const t of toolsList) console.error(`  - ${t.name}`);
-    if (!registryLoaded) {
+    if (registryLoaded) {
+      console.error("\n[test] Registry ready — sending mcp_search...");
+      proc.stdin.write(
+        msg("tools/call", {
+          name: "mcp_search",
+          arguments: { query: "send email gmail" },
+        })
+      );
+    } else {
       console.error("[test] Waiting for registry to load before searching...");
     }
     return;

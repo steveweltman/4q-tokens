@@ -1,6 +1,7 @@
 import { RegistryEntry, SearchResult } from "./types.js";
 import { ToolRegistry } from "./registry.js";
 import { EmbeddingEngine } from "./embeddings.js";
+import { SessionMemory } from "./session-memory.js";
 
 export class HybridSearch {
   private readonly LEXICAL_WEIGHT = 0.4;
@@ -8,7 +9,8 @@ export class HybridSearch {
 
   constructor(
     private readonly registry: ToolRegistry,
-    private readonly embeddings: EmbeddingEngine
+    private readonly embeddings: EmbeddingEngine,
+    private readonly sessionMemory?: SessionMemory,
   ) {}
 
   async search(query: string, limit: number): Promise<SearchResult[]> {
@@ -48,6 +50,7 @@ export class HybridSearch {
           return { tool, score: finalScore };
         });
 
+        this.applySessionBoost(scored);
         scored.sort((a, b) => b.score - a.score);
         return scored
           .filter((s) => s.score > 0.05)
@@ -61,6 +64,7 @@ export class HybridSearch {
       }
     }
 
+    this.applySessionBoost(lexicalScores);
     lexicalScores.sort((a, b) => b.score - a.score);
     return lexicalScores
       .filter((s) => s.score > 0)
@@ -107,6 +111,14 @@ export class HybridSearch {
     }
 
     return score;
+  }
+
+  private applySessionBoost(scored: Array<{ tool: RegistryEntry; score: number }>): void {
+    if (!this.sessionMemory) return;
+    for (const entry of scored) {
+      const boost = this.sessionMemory.boost(entry.tool.ref);
+      if (boost > 0) entry.score += boost;
+    }
   }
 
   private detectProvider(

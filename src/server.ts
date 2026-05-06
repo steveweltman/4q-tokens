@@ -11,6 +11,7 @@ import { OutputShaper } from "./output-shaper.js";
 import { PaginationManager } from "./pagination.js";
 import { ToolRegistry } from "./registry.js";
 import { HybridSearch } from "./search.js";
+import { SessionMemory } from "./session-memory.js";
 import {
   type CallParams,
   CallParamsSchema,
@@ -29,6 +30,7 @@ export class McpProxyServer {
   private readonly registry: ToolRegistry;
   private readonly connector: McpConnectorManager;
   private readonly search: HybridSearch;
+  private readonly sessionMemory: SessionMemory;
   private readonly embeddings: EmbeddingEngine;
   private readonly shaper: OutputShaper;
   private readonly pagination: PaginationManager;
@@ -47,9 +49,10 @@ export class McpProxyServer {
     });
 
     this.embeddings = new EmbeddingEngine();
+    this.sessionMemory = new SessionMemory();
     this.registry = new ToolRegistry(this.embeddings);
     this.connector = new McpConnectorManager(this.registry);
-    this.search = new HybridSearch(this.registry, this.embeddings);
+    this.search = new HybridSearch(this.registry, this.embeddings, this.sessionMemory);
     this.shaper = new OutputShaper(config.callItemLimit, config.maxTextLength);
     this.pagination = new PaginationManager();
     this.logger = new AuditLogger();
@@ -312,6 +315,7 @@ export class McpProxyServer {
             outputSize: content.length,
             itemCount: content.length,
           });
+          this.sessionMemory.record(params.ref);
           return { content };
         }
       }
@@ -345,6 +349,7 @@ export class McpProxyServer {
         itemCount: items.length,
       });
 
+      this.sessionMemory.record(params.ref);
       return { content: [{ type: "text", text: truncated }] };
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Unknown error";
