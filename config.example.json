@@ -5,6 +5,7 @@
       "transport": "stdio",
       "command": "node",
       "args": ["/path/to/google/server.mjs"],
+      "cwd": "/path/to",
       "env": {
         "GOOGLE_TOKEN_FILE": "token.json",
         "GOOGLE_CONNECTORS": "gmail,calendar,drive,docs,sheets"
@@ -24,7 +25,7 @@
       "transport": "http",
       "url": "https://mcp.example.com/",
       "auth": {
-        "apiKey": "API_KEY_ENV_VAR"
+        "apiKey": "MY_API_KEY"
       }
     }
   ],
@@ -34,3 +35,4 @@
   "maxOutputTokens": 8000,
   "idleTimeoutMs": 300000
 }
+

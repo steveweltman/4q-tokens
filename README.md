@@ -301,6 +301,22 @@ If a tool response looks truncated, retry with `detail=true` in mcp_call to disa
 mcp_call(ref="google_send_email", args={...}, detail=true)
 ```
 
+## Security & Networking
+
+The proxy binds to **`127.0.0.1` only** for security — it's not accessible from the network by default. To access remotely:
+
+- **Same machine**: Connect locally on `127.0.0.1:9200`
+- **Remote access**: Use Tailscale, SSH forwarding, or a VPN tunnel
+  ```bash
+  ssh -L 9200:127.0.0.1:9200 user@remote-host
+  ```
+- **Systemd service**: Access is local by default; no firewall rule needed
+
+## Known Limitations
+
+- **No automated tests** — this is production-quality code used daily, but test suite is not included
+- **Embeddings module**: The `sharp` module may fail to build on some systems. The proxy falls back to lexical (BM25) search automatically with no performance loss
+
 ## Attribution
 
 MCP Proxy Gateway is a fork of [@arvoretech/mcp-proxy](https://github.com/arvoreeducacao/arvore-mcp-servers), originally created by **João Augusto** and **Árvore Educação**.
