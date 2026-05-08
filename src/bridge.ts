@@ -88,22 +88,28 @@ export class BridgeServer {
     if (this.clientPromise) return this.clientPromise;
 
     this.clientPromise = (async () => {
-      const url = new URL(this.primaryUrl);
-      const client = new Client({
-        name: "mcp-proxy-bridge-client",
-        version: "1.0.0",
-      });
+      try {
+        const url = new URL(this.primaryUrl);
+        const client = new Client({
+          name: "mcp-proxy-bridge-client",
+          version: "1.0.0",
+        });
 
-      const transport = new StreamableHTTPClientTransport(url);
-      await client.connect(transport);
+        const transport = new StreamableHTTPClientTransport(url);
+        await client.connect(transport);
 
-      console.error(`[bridge] Connected to primary at ${this.primaryUrl}`);
-      this.client = client;
-      return client;
-    })().catch((err) => {
-      this.clientPromise = null;
-      throw err;
-    });
+        console.error(`[bridge] Connected to primary at ${this.primaryUrl}`);
+        this.client = client;
+        return client;
+      } catch (err) {
+        console.error(
+          `[bridge] Failed to connect to primary:`,
+          err instanceof Error ? err.message : err,
+        );
+        this.clientPromise = null;
+        throw err;
+      }
+    })();
 
     return this.clientPromise;
   }
@@ -169,6 +175,11 @@ export class BridgeServer {
           arguments: args,
         });
 
+        if (!result) {
+          console.error(`[bridge] Null result from callTool(${toolName})`);
+          throw new Error("Upstream returned null");
+        }
+
         if (result.content && Array.isArray(result.content)) {
           return { content: result.content as McpToolResult["content"] };
         }
@@ -207,10 +218,16 @@ export class BridgeServer {
     const primaryAlive = this.isPrimaryAlive();
 
     if (primaryAlive) {
-      const reachable = await this.isPrimaryReachable();
-      if (!reachable) {
-        console.error("[bridge] Primary is alive but HTTP transport is dead — killing unhealthy primary");
-        this.killUnhealthyPrimary();
+      try {
+        const reachable = await this.isPrimaryReachable();
+        if (!reachable) {
+          console.error("[bridge] Primary is alive but HTTP transport is dead — killing unhealthy primary");
+          this.killUnhealthyPrimary();
+        }
+      } catch (error) {
+        console.error(
+          `[bridge] Health check failed: ${error instanceof Error ? error.message : error}`
+        );
       }
     }
 

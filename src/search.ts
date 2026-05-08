@@ -15,64 +15,71 @@ export class HybridSearch {
   ) {}
 
   async search(query: string, limit: number): Promise<SearchResult[]> {
-    const tools = this.registry.getAll();
-    if (tools.length === 0) return [];
+    try {
+      const tools = this.registry.getAll();
+      if (tools.length === 0) return [];
 
-    const queryTokens = this.tokenize(query);
-    const providerHint = this.detectProvider(query, tools);
+      const queryTokens = this.tokenize(query);
+      const providerHint = this.detectProvider(query, tools);
 
-    const lexicalScores = tools.map((tool) => ({
-      tool,
-      score: this.lexicalScore(tool, queryTokens, providerHint),
-    }));
+      const lexicalScores = tools.map((tool) => ({
+        tool,
+        score: this.lexicalScore(tool, queryTokens, providerHint),
+      }));
 
-    const maxLexical = Math.max(...lexicalScores.map((s) => s.score), 1);
+      const maxLexical = Math.max(...lexicalScores.map((s) => s.score), 1);
 
-    if (this.embeddings.isReady()) {
-      try {
-        const queryEmbedding = await this.embeddings.embed(query);
+      if (this.embeddings.isReady()) {
+        try {
+          const queryEmbedding = await this.embeddings.embed(query);
 
-        const scored = lexicalScores.map(({ tool, score: lexScore }) => {
-          const normalizedLex = lexScore / maxLexical;
-          let semanticScore = 0;
+          const scored = lexicalScores.map(({ tool, score: lexScore }) => {
+            const normalizedLex = lexScore / maxLexical;
+            let semanticScore = 0;
 
-          if (tool.embedding && tool.embedding.length > 0) {
-            semanticScore = this.embeddings.cosineSimilarity(
-              queryEmbedding,
-              tool.embedding
-            );
-            semanticScore = Math.max(0, semanticScore);
-          }
+            if (tool.embedding && tool.embedding.length > 0) {
+              semanticScore = this.embeddings.cosineSimilarity(
+                queryEmbedding,
+                tool.embedding
+              );
+              semanticScore = Math.max(0, semanticScore);
+            }
 
-          const finalScore =
-            this.LEXICAL_WEIGHT * normalizedLex +
-            this.SEMANTIC_WEIGHT * semanticScore;
+            const finalScore =
+              this.LEXICAL_WEIGHT * normalizedLex +
+              this.SEMANTIC_WEIGHT * semanticScore;
 
-          return { tool, score: finalScore };
-        });
+            return { tool, score: finalScore };
+          });
 
-        this.applySessionBoost(scored);
-        this.applyDomainBoost(scored);
-        scored.sort((a, b) => b.score - a.score);
-        return scored
-          .filter((s) => s.score > 0.05)
-          .slice(0, limit)
-          .map((s) => this.toSearchResult(s.tool));
-      } catch (error) {
-        console.error(
-          `[search] Semantic search failed, falling back to lexical:`,
-          error instanceof Error ? error.message : error
-        );
+          this.applySessionBoost(scored);
+          this.applyDomainBoost(scored);
+          scored.sort((a, b) => b.score - a.score);
+          return scored
+            .filter((s) => s.score > 0.05)
+            .slice(0, limit)
+            .map((s) => this.toSearchResult(s.tool));
+        } catch (error) {
+          console.error(
+            `[search] Semantic search failed, falling back to lexical:`,
+            error instanceof Error ? error.message : error
+          );
+        }
       }
-    }
 
-    this.applySessionBoost(lexicalScores);
-    this.applyDomainBoost(lexicalScores);
-    lexicalScores.sort((a, b) => b.score - a.score);
-    return lexicalScores
-      .filter((s) => s.score > 0)
-      .slice(0, limit)
-      .map((s) => this.toSearchResult(s.tool));
+      this.applySessionBoost(lexicalScores);
+      this.applyDomainBoost(lexicalScores);
+      lexicalScores.sort((a, b) => b.score - a.score);
+      return lexicalScores
+        .filter((s) => s.score > 0)
+        .slice(0, limit)
+        .map((s) => this.toSearchResult(s.tool));
+    } catch (error) {
+      console.error(
+        `[search] Search failed: ${error instanceof Error ? error.message : error}`
+      );
+      return [];
+    }
   }
 
   private lexicalScore(

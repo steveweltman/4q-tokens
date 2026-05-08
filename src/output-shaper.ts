@@ -39,11 +39,27 @@ export class OutputShaper {
     detail = false,
     offset = 0
   ): { items: Shaped[]; hasMore: boolean; rawCount: number } {
-    const items = this.extractItems(data);
-    const rawCount = items.length;
-    const limited = items.slice(offset, offset + this.maxItems);
-    const shaped = limited.map((item) => this.shapeItem(item, provider, detail));
-    return { items: shaped, hasMore: rawCount > offset + this.maxItems, rawCount };
+    try {
+      const items = this.extractItems(data);
+      const rawCount = items.length;
+      const limited = items.slice(offset, offset + this.maxItems);
+      const shaped = limited.map((item) => {
+        try {
+          return this.shapeItem(item, provider, detail);
+        } catch (error) {
+          console.error(
+            `[shaper] Failed to shape item: ${error instanceof Error ? error.message : error}`
+          );
+          return { ref: `error_${++this.refCounter}`, error: "Failed to process" };
+        }
+      });
+      return { items: shaped, hasMore: rawCount > offset + this.maxItems, rawCount };
+    } catch (error) {
+      console.error(
+        `[shaper] Failed to shape response: ${error instanceof Error ? error.message : error}`
+      );
+      return { items: [], hasMore: false, rawCount: 0 };
+    }
   }
 
   shapeItem(
@@ -101,24 +117,31 @@ export class OutputShaper {
   }
 
   private tryParseCsv(data: string): Record<string, unknown>[] | null {
-    const lines = data.split("\n").filter((l) => l.trim());
-    if (lines.length < 2) return null;
+    try {
+      const lines = data.split("\n").filter((l) => l.trim());
+      if (lines.length < 2) return null;
 
-    const header = this.parseCsvLine(lines[0]);
-    if (header.length < 2) return null;
+      const header = this.parseCsvLine(lines[0]);
+      if (header.length < 2) return null;
 
-    const rows: Record<string, unknown>[] = [];
-    for (let i = 1; i < lines.length; i++) {
-      const values = this.parseCsvLine(lines[i]);
-      if (values.length === 0) continue;
-      const row: Record<string, unknown> = {};
-      for (let j = 0; j < header.length; j++) {
-        row[header[j]] = values[j] ?? "";
+      const rows: Record<string, unknown>[] = [];
+      for (let i = 1; i < lines.length; i++) {
+        const values = this.parseCsvLine(lines[i]);
+        if (values.length === 0) continue;
+        const row: Record<string, unknown> = {};
+        for (let j = 0; j < header.length; j++) {
+          row[header[j]] = values[j] ?? "";
+        }
+        rows.push(row);
       }
-      rows.push(row);
-    }
 
-    return rows.length > 0 ? rows : null;
+      return rows.length > 0 ? rows : null;
+    } catch (error) {
+      console.error(
+        `[shaper] CSV parse error: ${error instanceof Error ? error.message : error}`
+      );
+      return null;
+    }
   }
 
   private parseCsvLine(line: string): string[] {

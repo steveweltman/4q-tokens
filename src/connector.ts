@@ -165,44 +165,52 @@ export class McpConnectorManager {
     toolName: string,
     args: Record<string, unknown>,
   ): Promise<unknown> {
-    await this.ensureConnected(provider);
+    try {
+      await this.ensureConnected(provider);
 
-    const upstream = this.upstreams.get(provider);
-    if (!upstream)
-      throw new ProxyError(
-        `Provider not connected: ${provider}`,
-        "PROVIDER_NOT_FOUND",
-      );
+      const upstream = this.upstreams.get(provider);
+      if (!upstream)
+        throw new ProxyError(
+          `Provider not connected: ${provider}`,
+          "PROVIDER_NOT_FOUND",
+        );
 
-    const s = this.statuses.get(provider);
-    if (s) s.lastUsedAt = Date.now();
+      const s = this.statuses.get(provider);
+      if (s) s.lastUsedAt = Date.now();
 
-    const result = await upstream.client.callTool({
-      name: toolName,
-      arguments: args,
-    });
+      const result = await upstream.client.callTool({
+        name: toolName,
+        arguments: args,
+      });
 
-    if (result.content && Array.isArray(result.content)) {
-      const hasNonText = result.content.some(
-        (c: { type: string }) => c.type !== "text",
-      );
-      if (hasNonText) {
-        return { _rawContent: result.content };
-      }
-
-      const textParts = result.content
-        .filter((c: { type: string }) => c.type === "text")
-        .map((c: { text: string }) => c.text);
-      if (textParts.length === 1) {
-        try {
-          return JSON.parse(textParts[0]);
-        } catch {
-          return textParts[0];
+      if (result.content && Array.isArray(result.content)) {
+        const hasNonText = result.content.some(
+          (c: { type: string }) => c.type !== "text",
+        );
+        if (hasNonText) {
+          return { _rawContent: result.content };
         }
+
+        const textParts = result.content
+          .filter((c: { type: string }) => c.type === "text")
+          .map((c: { text: string }) => c.text);
+        if (textParts.length === 1) {
+          try {
+            return JSON.parse(textParts[0]);
+          } catch {
+            return textParts[0];
+          }
+        }
+        return textParts.join("\n");
       }
-      return textParts.join("\n");
+      return result;
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.error(
+        `[connector] Failed to call tool ${toolName} on ${provider}: ${msg}`
+      );
+      throw error;
     }
-    return result;
   }
 
   startIdleReaper(timeoutMs: number): void {
@@ -436,23 +444,63 @@ export class McpConnectorManager {
   }
 
   private async ingestTools(provider: string, client: Client): Promise<void> {
-    let cursor: string | undefined;
-    let previousCursor: string | undefined;
-    do {
-      const response = await client.listTools({ cursor });
-      for (const tool of response.tools) {
-        await this.registry.ingestUpstreamTool(
-          provider,
-          tool.name,
-          tool.description || "",
-          (tool.inputSchema as Record<string, unknown>) || {},
-        );
-      }
-      if (response.nextCursor && response.nextCursor === cursor) break;
-      previousCursor = cursor;
-      cursor = response.nextCursor;
-      if (cursor && cursor === previousCursor) break;
-    } while (cursor);
+    try {
+      let cursor: string | undefined;
+      let previousCursor: string | undefined;
+      do {
+        try {
+          const response = await client.listTools({ cursor });
+          if (!response) {
+            console.error(
+              `[connector] Null response from listTools(${provider})`,
+            );
+            break;
+          }
+          if (!Array.isArray(response.tools)) {
+            console.error(
+              `[connector] Invalid response from ${provider}: missing tools array`,
+            );
+            break;
+          }
+
+          for (const tool of response.tools) {
+            try {
+              if (!tool.name) {
+                console.error(
+                  `[connector] Skipping tool without name from ${provider}`,
+                );
+                continue;
+              }
+              await this.registry.ingestUpstreamTool(
+                provider,
+                tool.name,
+                tool.description || "",
+                (tool.inputSchema as Record<string, unknown>) || {},
+              );
+            } catch (error) {
+              console.error(
+                `[connector] Failed to ingest tool ${tool.name} from ${provider}:`,
+                error instanceof Error ? error.message : error,
+              );
+            }
+          }
+          if (response.nextCursor && response.nextCursor === cursor) break;
+          previousCursor = cursor;
+          cursor = response.nextCursor;
+          if (cursor && cursor === previousCursor) break;
+        } catch (error) {
+          console.error(
+            `[connector] Error listing tools from ${provider}:`,
+            error instanceof Error ? error.message : error,
+          );
+          break;
+        }
+      } while (cursor);
+    } catch (error) {
+      console.error(
+        `[connector] Ingest failed for ${provider}: ${error instanceof Error ? error.message : error}`
+      );
+    }
   }
 
   get connectedProviders(): string[] {
