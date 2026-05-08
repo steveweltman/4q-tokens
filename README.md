@@ -69,6 +69,90 @@ pnpm build
 npm install @arvoretech/mcp-proxy
 ```
 
+## Getting Started: Google Workspace Example
+
+Here's a concrete walkthrough to connect Google Workspace (Gmail, Calendar, Drive) to your LLM through the proxy:
+
+### Step 1: Choose or Build an MCP Server for Google
+
+You need an MCP server that wraps Google APIs. Options:
+
+- **@antidrift/mcp-google** (recommended) — Supports Gmail, Calendar, Drive, Docs, Sheets
+  ```bash
+  npm install @antidrift/mcp-google
+  # or
+  npx @antidrift/mcp-google --help
+  ```
+
+- **@modelcontextprotocol/server-gmail** — Gmail-only, official MCP server
+- **Build your own** — See the [MCP spec](https://modelcontextprotocol.io/) to wrap your own APIs
+
+### Step 2: Set Up Google OAuth
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project or select an existing one
+3. Enable these APIs:
+   - Gmail API
+   - Google Calendar API
+   - Google Drive API
+4. Create an OAuth 2.0 credential (type: Desktop application)
+5. Download the credential JSON
+6. Run the Google MCP server once to generate `token.json`:
+   ```bash
+   GOOGLE_CREDENTIAL_FILE=~/Downloads/credentials.json \
+   npx @antidrift/mcp-google
+   ```
+   This opens a browser for you to authorize. Once done, it saves `token.json` locally.
+
+### Step 3: Configure the Proxy
+
+Create `~/.config/4q-tokens/config.json`:
+
+```json
+{
+  "upstreams": [
+    {
+      "name": "google-workspace",
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["@antidrift/mcp-google"],
+      "env": {
+        "GOOGLE_TOKEN_FILE": "~/.local/share/google-mcp/token.json",
+        "GOOGLE_CONNECTORS": "gmail,calendar,drive"
+      }
+    }
+  ],
+  "searchLimit": 5,
+  "callItemLimit": 30,
+  "maxTextLength": 800,
+  "maxOutputTokens": 10000,
+  "idleTimeoutMs": 600000
+}
+```
+
+### Step 4: Start the Proxy
+
+```bash
+mcp-proxy
+# Or via systemd if installed:
+systemctl --user start mcp-proxy
+```
+
+### Step 5: Connect Your LLM
+
+Configure your LLM to use `http://127.0.0.1:9200/mcp` as its MCP server. It will see:
+- `mcp_search` — find tools by natural language
+- `mcp_call` — invoke a tool
+- `mcp_schema` — see tool details
+
+Example query:
+```
+mcp_search("send an email")
+# Returns: google_send_email (Gmail)
+
+mcp_call(ref="google_send_email", args={"to": "user@example.com", "subject": "Hello", "body": "Test"})
+```
+
 ## Configuration
 
 ### Quick Start with Environment Variables
