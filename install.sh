@@ -4,6 +4,7 @@ set -e
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 CONFIG_DIR="$HOME/.config/4q-tokens"
 BIN_DIR="$HOME/.local/bin"
+DIST_INDEX="$SCRIPT_DIR/dist/index.js"
 
 echo "[4q-tokens] Installing..."
 
@@ -27,9 +28,10 @@ fi
 mkdir -p "$BIN_DIR"
 
 echo "[4q-tokens] Installing to $BIN_DIR/mcp-proxy"
-cat > "$BIN_DIR/mcp-proxy" << 'EOF'
+cat > "$BIN_DIR/mcp-proxy" << EOF
 #!/bin/bash
-exec node "$(dirname "$0")/../projects/4q-tokens/dist/index.js" "$@"
+export MCP_PROXY_CONFIG="$CONFIG_DIR/config.json"
+exec node "$DIST_INDEX" "\$@"
 EOF
 chmod +x "$BIN_DIR/mcp-proxy"
 
@@ -39,7 +41,7 @@ if [ -d "$HOME/.config/systemd/user" ]; then
   echo
   if [[ $REPLY =~ ^[Yy]$ ]]; then
     mkdir -p "$HOME/.config/systemd/user"
-    cat > "$HOME/.config/systemd/user/mcp-proxy.service" << 'EOF'
+    cat > "$HOME/.config/systemd/user/mcp-proxy.service" << 'SYSTEMD'
 [Unit]
 Description=MCP Proxy Gateway
 After=network.target
@@ -56,7 +58,7 @@ SyslogIdentifier=mcp-proxy
 
 [Install]
 WantedBy=default.target
-EOF
+SYSTEMD
     systemctl --user daemon-reload
     echo "[4q-tokens] Systemd service installed. Start with:"
     echo "  systemctl --user start mcp-proxy"
@@ -66,6 +68,4 @@ fi
 
 echo "[4q-tokens] Installation complete!"
 echo "[4q-tokens] To run:"
-echo "  node $SCRIPT_DIR/dist/index.js"
-echo "[4q-tokens] Or use the installed wrapper:"
 echo "  mcp-proxy"

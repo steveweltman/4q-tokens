@@ -53,14 +53,14 @@ MCP Proxy Gateway sits between your LLM and your MCP servers, offering:
 ### From Source
 
 ```bash
-git clone https://github.com/arvoreeducacao/arvore-mcp-servers.git
-cd arvore-mcp-servers/packages/mcp-proxy
+git clone https://github.com/steveweltman/4q-tokens.git
+cd 4q-tokens
 
 pnpm install
 pnpm build
 
-# Optional: make available globally
-pnpm link --global
+# Install to ~/.local/bin and configure
+./install.sh
 ```
 
 ### As a Dependency
