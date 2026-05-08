@@ -1,0 +1,36 @@
+{
+  "upstreams": [
+    {
+      "name": "my-google-workspace",
+      "transport": "stdio",
+      "command": "node",
+      "args": ["/path/to/google/server.mjs"],
+      "env": {
+        "GOOGLE_TOKEN_FILE": "token.json",
+        "GOOGLE_CONNECTORS": "gmail,calendar,drive,docs,sheets"
+      }
+    },
+    {
+      "name": "my-mailerlite",
+      "transport": "stdio",
+      "command": "node",
+      "args": ["/path/to/mailerlite/server.mjs"],
+      "env": {
+        "MAILERLITE_API_KEY": "your-key-here"
+      }
+    },
+    {
+      "name": "external-api",
+      "transport": "http",
+      "url": "https://mcp.example.com/",
+      "auth": {
+        "apiKey": "API_KEY_ENV_VAR"
+      }
+    }
+  ],
+  "searchLimit": 3,
+  "callItemLimit": 20,
+  "maxTextLength": 500,
+  "maxOutputTokens": 8000,
+  "idleTimeoutMs": 300000
+}

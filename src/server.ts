@@ -1,5 +1,8 @@
 import { createServer, type Server as HttpServer } from "node:http";
 import { randomUUID } from "node:crypto";
+import { readFileSync, existsSync } from "node:fs";
+import { join } from "node:path";
+import { homedir } from "node:os";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
@@ -67,10 +70,31 @@ export class McpProxyServer {
   }
 
   static fromEnvironment(): McpProxyServer {
-    const upstreamsRaw = process.env.MCP_PROXY_UPSTREAMS;
+    let upstreamsRaw = process.env.MCP_PROXY_UPSTREAMS;
+    let configSource = "environment";
+
+    if (!upstreamsRaw) {
+      const configPath = process.env.MCP_PROXY_CONFIG || join(homedir(), ".config/4q-tokens/config.json");
+      if (existsSync(configPath)) {
+        try {
+          const configContent = readFileSync(configPath, "utf-8");
+          const fileConfig = JSON.parse(configContent);
+          if (fileConfig.upstreams) {
+            upstreamsRaw = JSON.stringify(fileConfig.upstreams);
+            configSource = `file:${configPath}`;
+            console.error(`[proxy] Loaded upstreams from ${configPath}`);
+          }
+        } catch (error) {
+          console.error(
+            `[proxy] Failed to load config file ${configPath}: ${error instanceof Error ? error.message : error}`
+          );
+        }
+      }
+    }
+
     if (!upstreamsRaw) {
       throw new ProxyError(
-        "MCP_PROXY_UPSTREAMS environment variable is required (JSON array of upstream configs)",
+        "MCP_PROXY_UPSTREAMS environment variable or ~/.config/4q-tokens/config.json is required",
         "MISSING_CONFIG",
       );
     }
@@ -88,7 +112,7 @@ export class McpProxyServer {
         : [UpstreamServerConfigSchema.parse(parsed)];
     } catch (error) {
       throw new ProxyError(
-        `Invalid MCP_PROXY_UPSTREAMS: ${error instanceof Error ? error.message : error}`,
+        `Invalid upstreams config (${configSource}): ${error instanceof Error ? error.message : error}`,
         "INVALID_CONFIG",
       );
     }
@@ -463,21 +487,37 @@ export class McpProxyServer {
       this.dashboard.start();
 
       this.upstreamsReady = (async () => {
-        await this.embeddings.init();
-        await this.connector.discoverAll(this.config.upstreams);
-        this.connector.startIdleReaper(this.config.idleTimeoutMs);
-        console.error(
-          `[proxy] Registry loaded: ${this.registry.size} tools from ${this.connector.discoveredProviders.length} providers (all idle)`,
-        );
-        console.error(
-          `[proxy] Idle timeout: ${this.config.idleTimeoutMs > 0 ? `${this.config.idleTimeoutMs / 1000}s` : "disabled"}`,
-        );
-        console.error(
-          `[proxy] Semantic search: ${this.embeddings.isReady() ? "enabled" : "disabled (lexical fallback)"}`,
-        );
-        console.error(
-          "[proxy] Exposing 3 tools: mcp_search, mcp_schema, mcp_call",
-        );
+        try {
+          await this.embeddings.init();
+        } catch (error) {
+          console.error(
+            "[proxy] Embeddings init failed, continuing with lexical search:",
+            error instanceof Error ? error.message : error,
+          );
+        }
+
+        try {
+          await this.connector.discoverAll(this.config.upstreams);
+          this.connector.startIdleReaper(this.config.idleTimeoutMs);
+          console.error(
+            `[proxy] Registry loaded: ${this.registry.size} tools from ${this.connector.discoveredProviders.length} providers (all idle)`,
+          );
+          console.error(
+            `[proxy] Idle timeout: ${this.config.idleTimeoutMs > 0 ? `${this.config.idleTimeoutMs / 1000}s` : "disabled"}`,
+          );
+          console.error(
+            `[proxy] Semantic search: ${this.embeddings.isReady() ? "enabled" : "disabled (lexical fallback)"}`,
+          );
+          console.error(
+            "[proxy] Exposing 3 tools: mcp_search, mcp_schema, mcp_call",
+          );
+        } catch (error) {
+          console.error(
+            "[proxy] Failed to discover upstreams:",
+            error instanceof Error ? error.message : error,
+          );
+          throw error;
+        }
       })();
 
       this.upstreamsReady.catch((error) => {
@@ -506,21 +546,37 @@ export class McpProxyServer {
       this.dashboard.start();
 
       this.upstreamsReady = (async () => {
-        await this.embeddings.init();
-        await this.connector.discoverAll(this.config.upstreams);
-        this.connector.startIdleReaper(this.config.idleTimeoutMs);
-        console.error(
-          `[proxy] Registry loaded: ${this.registry.size} tools from ${this.connector.discoveredProviders.length} providers (all idle)`,
-        );
-        console.error(
-          `[proxy] Idle timeout: ${this.config.idleTimeoutMs > 0 ? `${this.config.idleTimeoutMs / 1000}s` : "disabled"}`,
-        );
-        console.error(
-          `[proxy] Semantic search: ${this.embeddings.isReady() ? "enabled" : "disabled (lexical fallback)"}`,
-        );
-        console.error(
-          "[proxy] Exposing 3 tools: mcp_search, mcp_schema, mcp_call",
-        );
+        try {
+          await this.embeddings.init();
+        } catch (error) {
+          console.error(
+            "[proxy] Embeddings init failed, continuing with lexical search:",
+            error instanceof Error ? error.message : error,
+          );
+        }
+
+        try {
+          await this.connector.discoverAll(this.config.upstreams);
+          this.connector.startIdleReaper(this.config.idleTimeoutMs);
+          console.error(
+            `[proxy] Registry loaded: ${this.registry.size} tools from ${this.connector.discoveredProviders.length} providers (all idle)`,
+          );
+          console.error(
+            `[proxy] Idle timeout: ${this.config.idleTimeoutMs > 0 ? `${this.config.idleTimeoutMs / 1000}s` : "disabled"}`,
+          );
+          console.error(
+            `[proxy] Semantic search: ${this.embeddings.isReady() ? "enabled" : "disabled (lexical fallback)"}`,
+          );
+          console.error(
+            "[proxy] Exposing 3 tools: mcp_search, mcp_schema, mcp_call",
+          );
+        } catch (error) {
+          console.error(
+            "[proxy] Failed to discover upstreams:",
+            error instanceof Error ? error.message : error,
+          );
+          throw error;
+        }
       })();
 
       this.upstreamsReady.catch((error) => {
