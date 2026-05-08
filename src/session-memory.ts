@@ -35,11 +35,22 @@ export class SessionMemory {
   private load(): void {
     try {
       const raw = readFileSync(this.path, "utf8");
-      const data = JSON.parse(raw) as MemoryData;
-      this.calls = data.calls ?? [];
+      const data = JSON.parse(raw);
+      if (
+        data &&
+        typeof data === "object" &&
+        Array.isArray((data as Record<string, unknown>).calls)
+      ) {
+        this.calls = (data as MemoryData).calls ?? [];
+      } else {
+        this.calls = [];
+      }
       this.prune();
       console.error(`[session-memory] Loaded ${this.calls.length} entries from ${this.path}`);
-    } catch {
+    } catch (error) {
+      console.error(
+        `[session-memory] Load failed: ${error instanceof Error ? error.message : error}`,
+      );
       this.calls = [];
     }
   }
