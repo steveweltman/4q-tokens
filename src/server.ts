@@ -8,7 +8,6 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { McpConnectorManager } from "./connector.js";
 import { Dashboard } from "./dashboard.js";
-import { EmbeddingEngine } from "./embeddings.js";
 import { AuditLogger } from "./logger.js";
 import { OutputShaper } from "./output-shaper.js";
 import { PaginationManager } from "./pagination.js";
@@ -34,7 +33,6 @@ export class McpProxyServer {
   private readonly connector: McpConnectorManager;
   private readonly search: HybridSearch;
   private readonly sessionMemory: SessionMemory;
-  private readonly embeddings: EmbeddingEngine;
   private readonly shaper: OutputShaper;
   private readonly pagination: PaginationManager;
   private readonly logger: AuditLogger;
@@ -51,11 +49,10 @@ export class McpProxyServer {
       version: "1.0.0",
     });
 
-    this.embeddings = new EmbeddingEngine();
     this.sessionMemory = new SessionMemory();
-    this.registry = new ToolRegistry(this.embeddings);
+    this.registry = new ToolRegistry();
     this.connector = new McpConnectorManager(this.registry);
-    this.search = new HybridSearch(this.registry, this.embeddings, this.sessionMemory);
+    this.search = new HybridSearch(this.registry, this.sessionMemory);
     this.shaper = new OutputShaper(config.callItemLimit, config.maxTextLength);
     this.pagination = new PaginationManager();
     this.logger = new AuditLogger();
@@ -263,7 +260,7 @@ export class McpProxyServer {
 
     try {
       const limit = params.limit || this.config.searchLimit;
-      const results = await this.search.search(params.query, limit);
+      const results = this.search.search(params.query, limit);
 
       const output = results
         .map(
@@ -488,15 +485,6 @@ export class McpProxyServer {
 
       this.upstreamsReady = (async () => {
         try {
-          await this.embeddings.init();
-        } catch (error) {
-          console.error(
-            "[proxy] Embeddings init failed, continuing with lexical search:",
-            error instanceof Error ? error.message : error,
-          );
-        }
-
-        try {
           await this.connector.discoverAll(this.config.upstreams);
           this.connector.startIdleReaper(this.config.idleTimeoutMs);
           console.error(
@@ -505,9 +493,7 @@ export class McpProxyServer {
           console.error(
             `[proxy] Idle timeout: ${this.config.idleTimeoutMs > 0 ? `${this.config.idleTimeoutMs / 1000}s` : "disabled"}`,
           );
-          console.error(
-            `[proxy] Semantic search: ${this.embeddings.isReady() ? "enabled" : "disabled (lexical fallback)"}`,
-          );
+          console.error("[proxy] Search: pure lexical (BM25)");
           console.error(
             "[proxy] Exposing 3 tools: mcp_search, mcp_schema, mcp_call",
           );
@@ -547,15 +533,6 @@ export class McpProxyServer {
 
       this.upstreamsReady = (async () => {
         try {
-          await this.embeddings.init();
-        } catch (error) {
-          console.error(
-            "[proxy] Embeddings init failed, continuing with lexical search:",
-            error instanceof Error ? error.message : error,
-          );
-        }
-
-        try {
           await this.connector.discoverAll(this.config.upstreams);
           this.connector.startIdleReaper(this.config.idleTimeoutMs);
           console.error(
@@ -564,9 +541,7 @@ export class McpProxyServer {
           console.error(
             `[proxy] Idle timeout: ${this.config.idleTimeoutMs > 0 ? `${this.config.idleTimeoutMs / 1000}s` : "disabled"}`,
           );
-          console.error(
-            `[proxy] Semantic search: ${this.embeddings.isReady() ? "enabled" : "disabled (lexical fallback)"}`,
-          );
+          console.error("[proxy] Search: pure lexical (BM25)");
           console.error(
             "[proxy] Exposing 3 tools: mcp_search, mcp_schema, mcp_call",
           );

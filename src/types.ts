@@ -48,7 +48,6 @@ export interface RegistryEntry {
   mainParams: string[];
   example: Record<string, unknown>;
   tags: string[];
-  embedding?: number[];
   domain?: Domain;
   _inputSchema: Record<string, unknown>;
   cachedTokens: Set<string>;

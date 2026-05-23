@@ -109,7 +109,6 @@ export { McpProxyServer } from "./server.js";
 export { ToolRegistry } from "./registry.js";
 export { McpConnectorManager } from "./connector.js";
 export { HybridSearch } from "./search.js";
-export { EmbeddingEngine } from "./embeddings.js";
 export { OutputShaper } from "./output-shaper.js";
 export { PaginationManager } from "./pagination.js";
 export { AuditLogger } from "./logger.js";

@@ -1,11 +1,8 @@
 import { RegistryEntry } from "./types.js";
-import { EmbeddingEngine } from "./embeddings.js";
 import { classifyTool } from "./domain.js";
 
 export class ToolRegistry {
   private tools = new Map<string, RegistryEntry>();
-
-  constructor(private readonly embeddings?: EmbeddingEngine) {}
 
   register(entry: RegistryEntry): void {
     this.tools.set(entry.ref, entry);
@@ -42,25 +39,6 @@ export class ToolRegistry {
     const tags = this.generateTags(provider, toolName, description);
     const example = this.generateExample(mainParams);
 
-    let embedding: number[] | undefined;
-    if (this.embeddings?.isReady()) {
-      try {
-        const embeddingText = [
-          provider,
-          this.humanize(toolName),
-          description,
-          ...tags,
-          ...mainParams,
-        ].join(" ");
-        embedding = await this.embeddings.embed(embeddingText);
-      } catch (error) {
-        console.error(
-          `[registry] Failed to embed tool ${ref}:`,
-          error instanceof Error ? error.message : error
-        );
-      }
-    }
-
     const title = this.truncate(this.humanize(toolName), 60);
     const desc = this.truncate(description, 120);
 
@@ -80,7 +58,6 @@ export class ToolRegistry {
       mainParams,
       example,
       tags,
-      embedding,
       _inputSchema: JSON.parse(JSON.stringify(inputSchema)),
       cachedTokens,
     };

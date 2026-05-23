@@ -1,34 +1,15 @@
 import { RegistryEntry, SearchResult } from "./types.js";
 import { ToolRegistry, tokenize } from "./registry.js";
-import { EmbeddingEngine } from "./embeddings.js";
 import { SessionMemory } from "./session-memory.js";
 import { detectActiveDomain, DOMAIN_BOOST } from "./domain.js";
 
-const EMBEDDING_CACHE_MAX = 50;
-
 export class HybridSearch {
-  private readonly LEXICAL_WEIGHT = 0.4;
-  private readonly SEMANTIC_WEIGHT = 0.6;
-  private readonly embeddingCache = new Map<string, number[]>();
-
   constructor(
     private readonly registry: ToolRegistry,
-    private readonly embeddings: EmbeddingEngine,
     private readonly sessionMemory?: SessionMemory,
   ) {}
 
-  private async embedQuery(query: string): Promise<number[]> {
-    const cached = this.embeddingCache.get(query);
-    if (cached) return cached;
-    const embedding = await this.embeddings.embed(query);
-    if (this.embeddingCache.size >= EMBEDDING_CACHE_MAX) {
-      this.embeddingCache.delete(this.embeddingCache.keys().next().value!);
-    }
-    this.embeddingCache.set(query, embedding);
-    return embedding;
-  }
-
-  async search(query: string, limit: number): Promise<SearchResult[]> {
+  search(query: string, limit: number): SearchResult[] {
     try {
       const tools = this.registry.getAll();
       if (tools.length === 0) return [];
@@ -36,55 +17,15 @@ export class HybridSearch {
       const queryTokens = tokenize(query);
       const providerHint = this.detectProvider(query, tools);
 
-      const lexicalScores = tools.map((tool) => ({
+      const scored = tools.map((tool) => ({
         tool,
         score: this.lexicalScore(tool, queryTokens, providerHint),
       }));
 
-      const maxLexical = Math.max(...lexicalScores.map((s) => s.score), 1);
-
-      if (this.embeddings.isReady()) {
-        try {
-          const queryEmbedding = await this.embedQuery(query);
-
-          const scored = lexicalScores.map(({ tool, score: lexScore }) => {
-            const normalizedLex = lexScore / maxLexical;
-            let semanticScore = 0;
-
-            if (tool.embedding && tool.embedding.length > 0) {
-              semanticScore = this.embeddings.cosineSimilarity(
-                queryEmbedding,
-                tool.embedding
-              );
-              semanticScore = Math.max(0, semanticScore);
-            }
-
-            const finalScore =
-              this.LEXICAL_WEIGHT * normalizedLex +
-              this.SEMANTIC_WEIGHT * semanticScore;
-
-            return { tool, score: finalScore };
-          });
-
-          this.applySessionBoost(scored);
-          this.applyDomainBoost(scored);
-          scored.sort((a, b) => b.score - a.score);
-          return scored
-            .filter((s) => s.score > 0.05)
-            .slice(0, limit)
-            .map((s) => this.toSearchResult(s.tool));
-        } catch (error) {
-          console.error(
-            `[search] Semantic search failed, falling back to lexical:`,
-            error instanceof Error ? error.message : error
-          );
-        }
-      }
-
-      this.applySessionBoost(lexicalScores);
-      this.applyDomainBoost(lexicalScores);
-      lexicalScores.sort((a, b) => b.score - a.score);
-      return lexicalScores
+      this.applySessionBoost(scored);
+      this.applyDomainBoost(scored);
+      scored.sort((a, b) => b.score - a.score);
+      return scored
         .filter((s) => s.score > 0)
         .slice(0, limit)
         .map((s) => this.toSearchResult(s.tool));
