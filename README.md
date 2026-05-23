@@ -1,6 +1,6 @@
 # MCP Proxy Gateway
 
-A context-aware MCP proxy that reduces token usage by exposing only 2 tools (`mcp_search`, `mcp_call`) to LLMs instead of the full catalog.
+A context-aware MCP proxy that reduces token usage by exposing only 3 tools (`mcp_search`, `mcp_call`, `mcp_schema`) to LLMs instead of the full catalog.
 
 ## Why This Exists
 
@@ -23,7 +23,7 @@ MCP Proxy Gateway sits between your LLM and your MCP servers, offering:
          │   MCP Proxy Gateway      │
          │ ┌──────────────────────┐ │
          │ │ Tool Registry        │ │
-         │ │ (BM25 + Embeddings)  │ │
+         │ │ (BM25 lexical)       │ │
          │ └──────────────────────┘ │
          │ ┌──────────────────────┐ │
          │ │ Connector Manager    │ │
@@ -65,7 +65,7 @@ pnpm build
 ### As a Dependency
 
 ```bash
-npm install @arvoretech/mcp-proxy
+npm install -g 4q-tokenz
 ```
 
 ## Getting Started: Google Workspace Example
@@ -348,7 +348,6 @@ The proxy logs:
 The proxy has comprehensive error handling to gracefully degrade on upstream failures:
 
 - If an upstream tool call fails, the error is logged and returned to the client
-- If embeddings init fails, lexical search takes over
 - If all upstreams fail at discovery, startup fails with `NO_UPSTREAMS`
 
 For unhandled errors, check:
