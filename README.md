@@ -52,8 +52,8 @@ MCP Proxy Gateway sits between your LLM and your MCP servers, offering:
 ### From Source
 
 ```bash
-git clone https://github.com/steveweltman/4q-tokens.git
-cd 4q-tokens
+git clone https://github.com/steveweltman/4q-tokenz.git
+cd 4q-tokenz
 
 pnpm install
 pnpm build
