@@ -2,7 +2,7 @@
   "name": "4q-tokenz",
   "mcpName": "io.github.steveweltman/4q-tokenz",
   "version": "1.18.0",
-  "description": "MCP Proxy Gateway - Intelligent proxy that reduces token usage by exposing only mcp_search and mcp_call",
+  "description": "MCP Proxy Gateway - Intelligent proxy that reduces token usage by exposing only mcp_search, mcp_call, and mcp_schema",
   "main": "dist/index.js",
   "type": "module",
   "bin": {
@@ -10,12 +10,9 @@
   },
   "scripts": {
     "build": "tsc",
-    "dev": "tsx src/index.ts",
     "start": "node dist/index.js",
     "test": "echo 'No tests configured'",
-    "test:cov": "echo 'No tests configured'",
-    "lint": "eslint src/**/*.ts",
-    "lint:fix": "eslint src/**/*.ts --fix"
+    "test:cov": "echo 'No tests configured'"
   },
   "keywords": [
     "mcp",
