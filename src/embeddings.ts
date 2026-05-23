@@ -3,7 +3,7 @@ type Pipeline = (
   options?: Record<string, unknown>
 ) => Promise<{ tolist: () => number[][] }>;
 
-const DEFAULT_MODEL = "Xenova/paraphrase-multilingual-MiniLM-L12-v2";
+const DEFAULT_MODEL = "Xenova/all-MiniLM-L6-v2";
 
 export class EmbeddingEngine {
   private pipeline: Pipeline | null = null;
