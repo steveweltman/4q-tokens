@@ -199,14 +199,6 @@ Create `~/.config/4q-tokens/config.json`:
       "auth": {
         "apiKey": "MY_API_KEY_ENV_VAR"
       }
-    },
-    {
-      "name": "external-api",
-      "transport": "http",
-      "url": "https://mcp.example.com/",
-      "auth": {
-        "apiKey": "API_KEY_ENV_VAR"
-      }
     }
   ],
   "searchLimit": 3,
@@ -316,7 +308,7 @@ journalctl --user -u mcp-proxy -f
 
 ### HTTP Server (Port 9200)
 
-When `MCP_PROXY_SINGLETON_PORT` is set, the proxy starts an HTTP transport on that port. This allows multiple clients to connect to a single proxy instance.
+The proxy always starts an HTTP transport on port 9200 by default. Set `MCP_PROXY_SINGLETON_PORT` to use a different port. This allows multiple clients to connect to a single proxy instance.
 
 ```bash
 export MCP_PROXY_SINGLETON_PORT=9200
@@ -388,19 +380,17 @@ The proxy binds to **`127.0.0.1` only** for security — it's not accessible fro
 ## Changelog
 
 ### v1.18.0
-- Drop `@xenova/transformers` entirely — eliminates the protobufjs/ONNX runtime supply chain entirely
+- Drop `@xenova/transformers` entirely — eliminates the protobufjs/ONNX runtime supply chain
 - Switch to pure lexical (BM25) search; tool tokens pre-computed at startup, zero per-query overhead
 - No change to mcp_search quality for English-language tool catalogs
 - Removes ~90MB model download on first run and all native module requirements
 
 ### v1.17.1
 - Pre-compute tool token sets at registry build time; lexical scoring now reads the cache instead of re-tokenizing on every query
-- Add 50-entry LRU cache for query embeddings; repeated queries within a session skip model inference (embeddings removed in v1.18.0)
+- Add LRU cache for query embeddings (embeddings removed entirely in v1.18.0)
 
 ### v1.17.0
-- Switch embedding model from `paraphrase-multilingual-MiniLM-L12-v2` (12-layer, ~470MB, multilingual) to `all-MiniLM-L6-v2` (6-layer, ~90MB, English-optimized)
-- Reduces cold-start download by ~380MB and halves per-query inference time with no accuracy loss for English deployments
-- Reduces dependency attack surface (smaller model, fewer native components)
+- Switch to lighter English-optimized embedding model, reducing cold-start download by ~380MB (embeddings removed entirely in v1.18.0)
 
 ### v1.16.0
 - Update `@modelcontextprotocol/sdk` from `~1.22.0` to `^1.26.0` — resolves 3 high-severity CVEs: ReDoS, cross-client data leak, DNS rebinding
