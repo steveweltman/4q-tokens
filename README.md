@@ -306,6 +306,35 @@ systemctl --user start mcp-proxy
 journalctl --user -u mcp-proxy -f
 ```
 
+### Prometheus Metrics (Port 9100)
+
+The dashboard exposes a Prometheus-compatible `/metrics` endpoint:
+
+```bash
+curl http://localhost:9100/metrics
+```
+
+Metrics exposed:
+| Metric | Type | Description |
+|--------|------|-------------|
+| `mcp_proxy_uptime_seconds` | gauge | Seconds since process started |
+| `mcp_proxy_registered_tools` | gauge | Tools in the registry |
+| `mcp_proxy_upstream_up` | gauge | 1 if upstream is connected/idle, 0 if error |
+| `mcp_proxy_upstream_tools` | gauge | Tools discovered per upstream |
+| `mcp_proxy_calls_total` | counter | Calls by tool, provider, status |
+| `mcp_proxy_call_duration_ms_total` | counter | Cumulative call duration (ms) |
+| `mcp_proxy_output_bytes_total` | counter | Cumulative output bytes |
+
+Add a scrape job in your Prometheus/Alloy config:
+
+```yaml
+scrape_configs:
+  - job_name: mcp-proxy
+    static_configs:
+      - targets: ['localhost:9100']
+    metrics_path: /metrics
+```
+
 ### HTTP Server (Port 9200)
 
 The proxy always starts an HTTP transport on port 9200 by default. Set `MCP_PROXY_SINGLETON_PORT` to use a different port. This allows multiple clients to connect to a single proxy instance.
@@ -378,6 +407,11 @@ The proxy binds to **`127.0.0.1` only** for security — it's not accessible fro
 - **No automated tests** — this is production-quality code used daily, but test suite is not included
 
 ## Changelog
+
+### v1.19.0
+- Add Prometheus `/metrics` endpoint on the dashboard port (9100 by default)
+- Exposes: `mcp_proxy_uptime_seconds`, `mcp_proxy_registered_tools`, `mcp_proxy_upstream_up`, `mcp_proxy_upstream_tools`, `mcp_proxy_calls_total`, `mcp_proxy_call_duration_ms_total`, `mcp_proxy_output_bytes_total`
+- Counters persist for the lifetime of the process; scrape with Prometheus/Alloy and visualize in Grafana
 
 ### v1.18.0
 - Drop `@xenova/transformers` entirely — eliminates the protobufjs/ONNX runtime supply chain

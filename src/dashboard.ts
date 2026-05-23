@@ -36,6 +36,11 @@ export class Dashboard {
         res.end(JSON.stringify(this.getData()));
         return;
       }
+      if (req.url === "/metrics") {
+        res.writeHead(200, { "Content-Type": "text/plain; version=0.0.4; charset=utf-8" });
+        res.end(this.renderMetrics());
+        return;
+      }
       res.writeHead(200, { "Content-Type": "text/html" });
       res.end(this.getHtml());
     });
@@ -53,6 +58,67 @@ export class Dashboard {
 
   stop(): void {
     this.server?.close();
+  }
+
+  private escLabel(s: string): string {
+    return s.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n");
+  }
+
+  private renderMetrics(): string {
+    const m = this.logger.getMetrics();
+    const uptime = (Date.now() - m.startTime) / 1000;
+    const lines: string[] = [];
+
+    lines.push("# HELP mcp_proxy_uptime_seconds Seconds since proxy process started");
+    lines.push("# TYPE mcp_proxy_uptime_seconds gauge");
+    lines.push(`mcp_proxy_uptime_seconds ${uptime.toFixed(1)}`);
+    lines.push("");
+
+    lines.push("# HELP mcp_proxy_registered_tools Total tools in the registry");
+    lines.push("# TYPE mcp_proxy_registered_tools gauge");
+    lines.push(`mcp_proxy_registered_tools ${this.registry.size}`);
+    lines.push("");
+
+    lines.push("# HELP mcp_proxy_upstream_up 1 if upstream is connected or idle, 0 if error");
+    lines.push("# TYPE mcp_proxy_upstream_up gauge");
+    for (const s of this.connector.getStatuses()) {
+      const up = s.status === "connected" || s.status === "idle" ? 1 : 0;
+      lines.push(`mcp_proxy_upstream_up{name="${this.escLabel(s.name)}",transport="${s.transport}"} ${up}`);
+    }
+    lines.push("");
+
+    lines.push("# HELP mcp_proxy_upstream_tools Number of tools discovered per upstream");
+    lines.push("# TYPE mcp_proxy_upstream_tools gauge");
+    for (const s of this.connector.getStatuses()) {
+      lines.push(`mcp_proxy_upstream_tools{name="${this.escLabel(s.name)}"} ${s.toolCount}`);
+    }
+    lines.push("");
+
+    lines.push("# HELP mcp_proxy_calls_total Total tool calls by tool, provider, and status");
+    lines.push("# TYPE mcp_proxy_calls_total counter");
+    for (const [key, count] of m.callsTotal) {
+      const [tool, provider, status] = key.split("\x00");
+      lines.push(`mcp_proxy_calls_total{tool="${this.escLabel(tool)}",provider="${this.escLabel(provider)}",status="${status}"} ${count}`);
+    }
+    lines.push("");
+
+    lines.push("# HELP mcp_proxy_call_duration_ms_total Cumulative call duration in milliseconds");
+    lines.push("# TYPE mcp_proxy_call_duration_ms_total counter");
+    for (const [key, sum] of m.durationSumMs) {
+      const [tool, provider] = key.split("\x00");
+      lines.push(`mcp_proxy_call_duration_ms_total{tool="${this.escLabel(tool)}",provider="${this.escLabel(provider)}"} ${sum}`);
+    }
+    lines.push("");
+
+    lines.push("# HELP mcp_proxy_output_bytes_total Cumulative output bytes by tool and provider");
+    lines.push("# TYPE mcp_proxy_output_bytes_total counter");
+    for (const [key, bytes] of m.outputBytesTotal) {
+      const [tool, provider] = key.split("\x00");
+      lines.push(`mcp_proxy_output_bytes_total{tool="${this.escLabel(tool)}",provider="${this.escLabel(provider)}"} ${bytes}`);
+    }
+    lines.push("");
+
+    return lines.join("\n");
   }
 
   private getData() {
