@@ -1,9 +1,9 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.steveweltman/4q-tokenz",
-  "description": "Intelligent MCP proxy that reduces token usage by exposing only mcp_search and mcp_call.",
+  "description": "Intelligent MCP proxy that reduces token usage by exposing only mcp_search, mcp_call, and mcp_schema.",
   "repository": {
-    "url": "https://github.com/steveweltman/4q-tokens",
+    "url": "https://github.com/steveweltman/4q-tokenz",
     "source": "github"
   },
   "version": "1.18.0",
