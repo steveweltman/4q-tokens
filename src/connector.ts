@@ -382,7 +382,7 @@ export class McpConnectorManager {
     );
     const failures = results.filter((r) => r.status === "rejected");
     if (failures.length > 0)
-      console.error(`onnector] ${failures.length}/${configs.length} failed`);
+      console.error(`[connector] ${failures.length}/${configs.length} failed`);
     if (this.upstreams.size === 0)
       throw new ProxyError("No upstreams connected", "NO_UPSTREAMS");
   }
