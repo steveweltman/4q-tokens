@@ -76,7 +76,7 @@ Here's a concrete walkthrough to connect Google Workspace (Gmail, Calendar, Driv
 
 You need an MCP server that wraps Google APIs. Options:
 
-- **@antidrift/mcp-google** (recommended) — Supports Gmail, Calendar, Drive, Docs, Sheets
+- **@antidrift/mcp-google** (recommended) — A collection of MCP server implementations for Google Workspace (Gmail, Calendar, Drive, Docs, Sheets). Works out of the box with this proxy.
   ```bash
   npm install @antidrift/mcp-google
   # or
@@ -185,8 +185,8 @@ Create `~/.config/4q-tokens/config.json`:
     {
       "name": "google-workspace",
       "transport": "stdio",
-      "command": "node",
-      "args": ["/home/user/.antidrift/tools/google/server.mjs"],
+      "command": "npx",
+      "args": ["@antidrift/mcp-google"],
       "env": {
         "GOOGLE_TOKEN_FILE": "token.json",
         "GOOGLE_CONNECTORS": "gmail,calendar,drive"
@@ -195,8 +195,8 @@ Create `~/.config/4q-tokens/config.json`:
     {
       "name": "mailerlite",
       "transport": "stdio",
-      "command": "node",
-      "args": ["/home/user/.antidrift/tools/mailerlite/server.mjs"],
+      "command": "npx",
+      "args": ["@antidrift/mcp-mailerlite"],
       "env": {
         "MAILERLITE_API_KEY": "your-api-key-here"
       }
@@ -396,7 +396,7 @@ The proxy binds to **`127.0.0.1` only** for security — it's not accessible fro
 
 ### v1.17.1
 - Pre-compute tool token sets at registry build time; lexical scoring now reads the cache instead of re-tokenizing on every query
-- Add 50-entry LRU cache for query embeddings; repeated queries within a session skip model inference
+- Add 50-entry LRU cache for query embeddings; repeated queries within a session skip model inference (embeddings removed in v1.18.0)
 
 ### v1.17.0
 - Switch embedding model from `paraphrase-multilingual-MiniLM-L12-v2` (12-layer, ~470MB, multilingual) to `all-MiniLM-L6-v2` (6-layer, ~90MB, English-optimized)
@@ -412,7 +412,7 @@ The proxy binds to **`127.0.0.1` only** for security — it's not accessible fro
 
 MCP Proxy Gateway is a fork of [@arvoretech/mcp-proxy](https://github.com/arvoreeducacao/arvore-mcp-servers), originally created by **João Augusto** and **Árvore Educação**.
 
-Forked for single-player use with enhancements:
+Forked and extended with:
 - Singleton mode for HTTP bridge
 - Idle server reaping
 - Comprehensive error handling
