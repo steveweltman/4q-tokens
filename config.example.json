@@ -3,21 +3,20 @@
     {
       "name": "my-google-workspace",
       "transport": "stdio",
-      "command": "node",
-      "args": ["/path/to/google/server.mjs"],
-      "cwd": "/path/to",
+      "command": "npx",
+      "args": ["@antidrift/mcp-google"],
       "env": {
         "GOOGLE_TOKEN_FILE": "token.json",
         "GOOGLE_CONNECTORS": "gmail,calendar,drive,docs,sheets"
       }
     },
     {
-      "name": "my-mailerlite",
+      "name": "my-custom-api",
       "transport": "stdio",
       "command": "node",
-      "args": ["/path/to/mailerlite/server.mjs"],
+      "args": ["/path/to/your/mcp-server.mjs"],
       "env": {
-        "MAILERLITE_API_KEY": "your-key-here"
+        "API_KEY": "your-key-here"
       }
     },
     {
@@ -25,7 +24,7 @@
       "transport": "http",
       "url": "https://mcp.example.com/",
       "auth": {
-        "apiKey": "MY_API_KEY"
+        "apiKey": "MY_API_KEY_ENV_VAR"
       }
     }
   ],
@@ -35,4 +34,3 @@
   "maxOutputTokens": 8000,
   "idleTimeoutMs": 300000
 }
-
