@@ -375,67 +375,6 @@ export class McpConnectorManager {
     this.upstreams.clear();
   }
 
-  /** @deprecated Use discoverAll for startup. Kept for manual refresh. */
-  async connectAll(configs: UpstreamServerConfig[]): Promise<void> {
-    const results = await Promise.allSettled(
-      configs.map((c) => this.connect(c)),
-    );
-    const failures = results.filter((r) => r.status === "rejected");
-    if (failures.length > 0)
-      console.error(`[connector] ${failures.length}/${configs.length} failed`);
-    if (this.upstreams.size === 0)
-      throw new ProxyError("No upstreams connected", "NO_UPSTREAMS");
-  }
-
-  private async connect(config: UpstreamServerConfig): Promise<void> {
-    this.configs.set(config.name, config);
-    this.statuses.set(config.name, {
-      name: config.name,
-      transport: config.transport,
-      status: "connecting",
-      toolCount: 0,
-      logs: [],
-    });
-    this.addLog(config.name, `Connecting via ${config.transport}...`);
-
-    try {
-      if (config.transport === "http") {
-        await this.connectHttp(config);
-      } else {
-        await this.connectStdio(config);
-      }
-
-      await this.ingestTools(
-        config.name,
-        this.upstreams.get(config.name)!.client,
-      );
-      const toolCount = this.registry.getByProvider(config.name).length;
-      const s = this.statuses.get(config.name)!;
-      s.status = "connected";
-      s.toolCount = toolCount;
-      s.lastUsedAt = Date.now();
-      this.addLog(config.name, `Connected — ${toolCount} tools`);
-      console.error(`[connector] ${config.name} — ${toolCount} tools`);
-    } catch (error) {
-      const s = this.statuses.get(config.name)!;
-      s.status = "error";
-      const exMsg = error instanceof Error ? error.message : String(error);
-      this.addLog(config.name, `ERROR: ${exMsg}`);
-      if (error instanceof Error && error.stack) {
-        this.addLog(config.name, error.stack);
-      }
-      const stderrLines = s.logs
-        .map((l) => l.replace(/^\[.*?\]\s*/, ""))
-        .filter((l) => l !== `Connecting via ${config.transport}...`);
-      s.error = stderrLines.length > 0 ? stderrLines.join("\n") : exMsg;
-      console.error(`[connector] Failed ${config.name}:`, exMsg);
-      throw new ProxyError(
-        `Failed to connect: ${config.name}`,
-        "UPSTREAM_CONNECTION_FAILED",
-      );
-    }
-  }
-
   async refreshTools(): Promise<void> {
     this.registry.clear();
     for (const [name, upstream] of this.upstreams) {

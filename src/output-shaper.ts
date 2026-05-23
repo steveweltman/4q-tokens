@@ -175,7 +175,6 @@ export class OutputShaper {
     return fields;
   }
 
-
   private isObject(v: unknown): v is Record<string, unknown> {
     return typeof v === "object" && v !== null && !Array.isArray(v);
   }
