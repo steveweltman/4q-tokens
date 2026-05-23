@@ -51,6 +51,7 @@ export interface RegistryEntry {
   embedding?: number[];
   domain?: Domain;
   _inputSchema: Record<string, unknown>;
+  cachedTokens: Set<string>;
 }
 
 export const SearchParamsSchema = z.object({

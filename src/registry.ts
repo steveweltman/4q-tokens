@@ -61,17 +61,28 @@ export class ToolRegistry {
       }
     }
 
+    const title = this.truncate(this.humanize(toolName), 60);
+    const desc = this.truncate(description, 120);
+
+    const cachedTokens = new Set<string>([
+      ...tokenize(title),
+      ...tokenize(desc),
+      ...tags,
+      ...mainParams.map((p) => p.toLowerCase()),
+    ]);
+
     const entry: RegistryEntry = {
       ref,
       provider,
       originalName: toolName,
-      title: this.truncate(this.humanize(toolName), 60),
-      description: this.truncate(description, 120),
+      title,
+      description: desc,
       mainParams,
       example,
       tags,
       embedding,
       _inputSchema: JSON.parse(JSON.stringify(inputSchema)),
+      cachedTokens,
     };
     entry.domain = classifyTool(entry) ?? undefined;
 
@@ -130,6 +141,14 @@ export class ToolRegistry {
     if (text.length <= max) return text;
     return text.slice(0, max - 1) + "…";
   }
+}
+
+export function tokenize(text: string): string[] {
+  return text
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .split(/\s+/)
+    .filter((t) => t.length > 1);
 }
 
 const STOP_WORDS = new Set([

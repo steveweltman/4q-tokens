@@ -1,12 +1,15 @@
 import { RegistryEntry, SearchResult } from "./types.js";
-import { ToolRegistry } from "./registry.js";
+import { ToolRegistry, tokenize } from "./registry.js";
 import { EmbeddingEngine } from "./embeddings.js";
 import { SessionMemory } from "./session-memory.js";
 import { detectActiveDomain, DOMAIN_BOOST } from "./domain.js";
 
+const EMBEDDING_CACHE_MAX = 50;
+
 export class HybridSearch {
   private readonly LEXICAL_WEIGHT = 0.4;
   private readonly SEMANTIC_WEIGHT = 0.6;
+  private readonly embeddingCache = new Map<string, number[]>();
 
   constructor(
     private readonly registry: ToolRegistry,
@@ -14,12 +17,23 @@ export class HybridSearch {
     private readonly sessionMemory?: SessionMemory,
   ) {}
 
+  private async embedQuery(query: string): Promise<number[]> {
+    const cached = this.embeddingCache.get(query);
+    if (cached) return cached;
+    const embedding = await this.embeddings.embed(query);
+    if (this.embeddingCache.size >= EMBEDDING_CACHE_MAX) {
+      this.embeddingCache.delete(this.embeddingCache.keys().next().value!);
+    }
+    this.embeddingCache.set(query, embedding);
+    return embedding;
+  }
+
   async search(query: string, limit: number): Promise<SearchResult[]> {
     try {
       const tools = this.registry.getAll();
       if (tools.length === 0) return [];
 
-      const queryTokens = this.tokenize(query);
+      const queryTokens = tokenize(query);
       const providerHint = this.detectProvider(query, tools);
 
       const lexicalScores = tools.map((tool) => ({
@@ -31,7 +45,7 @@ export class HybridSearch {
 
       if (this.embeddings.isReady()) {
         try {
-          const queryEmbedding = await this.embeddings.embed(query);
+          const queryEmbedding = await this.embedQuery(query);
 
           const scored = lexicalScores.map(({ tool, score: lexScore }) => {
             const normalizedLex = lexScore / maxLexical;
@@ -93,19 +107,12 @@ export class HybridSearch {
       score += 3;
     }
 
-    const toolTokens = new Set([
-      ...this.tokenize(tool.title),
-      ...this.tokenize(tool.description),
-      ...tool.tags,
-      ...tool.mainParams.map((p) => p.toLowerCase()),
-    ]);
-
     for (const qt of queryTokens) {
-      if (toolTokens.has(qt)) {
+      if (tool.cachedTokens.has(qt)) {
         score += 2;
         continue;
       }
-      for (const tt of toolTokens) {
+      for (const tt of tool.cachedTokens) {
         if (tt.includes(qt) || qt.includes(tt)) {
           score += 1;
           break;
@@ -165,11 +172,4 @@ export class HybridSearch {
     };
   }
 
-  private tokenize(text: string): string[] {
-    return text
-      .toLowerCase()
-      .replace(/[^\p{L}\p{N}\s]/gu, " ")
-      .split(/\s+/)
-      .filter((t) => t.length > 1);
-  }
 }

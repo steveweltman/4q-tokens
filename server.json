@@ -6,12 +6,12 @@
     "url": "https://github.com/steveweltman/4q-tokens",
     "source": "github"
   },
-  "version": "1.17.0",
+  "version": "1.17.1",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "4q-tokenz",
-      "version": "1.17.0",
+      "version": "1.17.1",
       "transport": {
         "type": "stdio"
       }
