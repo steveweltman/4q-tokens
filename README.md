@@ -9,7 +9,7 @@ When you connect multiple MCP servers to an LLM, every tool from every server is
 MCP Proxy Gateway sits between your LLM and your MCP servers, offering:
 
 - **JIT tool loading** — tools from upstream servers are discovered once at startup, then tools are called on-demand. Clients never see the full catalog.
-- **Intelligent search** — hybrid lexical + semantic search (BM25 + embeddings) to find the right tool for a query, ranked by relevance.
+- **Intelligent search** — hybrid lexical + semantic search (BM25 + embeddings via `all-MiniLM-L6-v2`) to find the right tool for a query, ranked by relevance. Tool tokens are pre-computed at startup for fast per-query scoring.
 - **Token savings** — LLMs only see 3 tool schemas (search, call, schema) instead of 50+. Typical savings: 20-40% per turn for tool-heavy workflows.
 - **Graceful degradation** — when embeddings fail (e.g., sharp module missing), falls back to lexical search automatically.
 
@@ -46,7 +46,7 @@ MCP Proxy Gateway sits between your LLM and your MCP servers, offering:
 
 - Node.js 18+ with npm or pnpm
 - One or more MCP servers to proxy (stdio or HTTP)
-- Optional: for semantic search, the `@xenova/transformers` library is pre-installed, but requires the `sharp` module for best performance
+- Semantic search is enabled by default using `@xenova/transformers` with the `all-MiniLM-L6-v2` model (~90MB download on first run, cached after). Falls back to lexical search automatically if the model fails to load.
 
 ## Installation
 
@@ -333,15 +333,15 @@ curl -X POST http://127.0.0.1:9200/mcp -H "Content-Type: application/json" \
 
 ### Semantic Search Not Working
 
-If embeddings fail with "Cannot find module 'sharp'", the proxy automatically falls back to lexical (keyword) search.
+Semantic search uses `@xenova/transformers` with `all-MiniLM-L6-v2`. On first run it downloads ~90MB to a local cache. If the download fails or the model fails to initialize, the proxy automatically falls back to lexical (BM25) search with no loss of core functionality.
 
-To enable semantic search, install the optional sharp module:
+To override the embedding model:
 
 ```bash
-npm install sharp
+export MCP_PROXY_EMBEDDING_MODEL="Xenova/all-MiniLM-L6-v2"
 ```
 
-If installation still fails (common on M1/M2 Macs or unusual architectures), the fallback is already in place. See error logs for details.
+Check logs for `[embeddings] Engine ready` to confirm semantic search is active.
 
 ### Upstream MCP Server Won't Connect
 
@@ -399,7 +399,23 @@ The proxy binds to **`127.0.0.1` only** for security — it's not accessible fro
 ## Known Limitations
 
 - **No automated tests** — this is production-quality code used daily, but test suite is not included
-- **Embeddings module**: The `sharp` module may fail to build on some systems. The proxy falls back to lexical (BM25) search automatically with no performance loss
+- **Embeddings cold start**: The `all-MiniLM-L6-v2` model (~90MB) downloads on first run and is cached locally. Subsequent starts use the cache. The proxy falls back to lexical (BM25) search automatically if the model fails to load.
+
+## Changelog
+
+### v1.17.1
+- Pre-compute tool token sets at registry build time; lexical scoring now reads the cache instead of re-tokenizing on every query
+- Add 50-entry LRU cache for query embeddings; repeated queries within a session skip model inference
+
+### v1.17.0
+- Switch embedding model from `paraphrase-multilingual-MiniLM-L12-v2` (12-layer, ~470MB, multilingual) to `all-MiniLM-L6-v2` (6-layer, ~90MB, English-optimized)
+- Reduces cold-start download by ~380MB and halves per-query inference time with no accuracy loss for English deployments
+- Reduces dependency attack surface (smaller model, fewer native components)
+
+### v1.16.0
+- Update `@modelcontextprotocol/sdk` from `~1.22.0` to `^1.26.0` — resolves 3 high-severity CVEs: ReDoS, cross-client data leak, DNS rebinding
+- Add pnpm override: `protobufjs >=7.5.8` — resolves critical arbitrary code execution and multiple high CVEs in `@xenova/transformers` transitive dependency chain
+- Add pnpm override: `qs >=6.15.2` — resolves moderate DoS vulnerability in `express` transitive dependency
 
 ## Attribution
 
