@@ -55,7 +55,7 @@ if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
 fi
 
 echo "[4q-tokenz] Checking if systemd user service should be installed..."
-if [ -d "$HOME/.config/systemd/user" ] || systemctl --user status &>/dev/null 2>&1; then
+if command -v systemctl &>/dev/null; then
   read -p "Install systemd user service? (y/n) " -n 1 -r
   echo
   if [[ $REPLY =~ ^[Yy]$ ]]; then
