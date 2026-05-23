@@ -193,12 +193,11 @@ Create `~/.config/4q-tokens/config.json`:
       }
     },
     {
-      "name": "mailerlite",
-      "transport": "stdio",
-      "command": "npx",
-      "args": ["@antidrift/mcp-mailerlite"],
-      "env": {
-        "MAILERLITE_API_KEY": "your-api-key-here"
+      "name": "external-api",
+      "transport": "http",
+      "url": "https://mcp.example.com/",
+      "auth": {
+        "apiKey": "MY_API_KEY_ENV_VAR"
       }
     },
     {
